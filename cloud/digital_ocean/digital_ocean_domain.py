@@ -29,10 +29,7 @@ options:
      - Indicate desired state of the target.
     default: present
     choices: ['present', 'absent']
-  client_id:
-     description:
-     - DigitalOcean manager id.
-  api_key:
+  api_token:
     description:
      - DigitalOcean api key.
   id:
@@ -135,8 +132,8 @@ class Domain(JsonfyMixIn):
         return cls(json)
 
     @classmethod
-    def setup(cls, client_id, api_key):
-        cls.manager = DoManager(client_id, api_key)
+    def setup(cls, api_token):
+        cls.manager = DoManager(None, api_token, api_version=2)
         DomainRecord.manager = cls.manager
 
     @classmethod
@@ -171,16 +168,14 @@ def core(module):
         return v
 
     try:
-        # params['client_id'] will be None even if client_id is not passed in
-        client_id = module.params['client_id'] or os.environ['DO_CLIENT_ID']
-        api_key = module.params['api_key'] or os.environ['DO_API_KEY']
+        api_token = module.params['api_token'] or os.environ['DO_API_TOKEN'] or os.environ['DO_API_KEY']
     except KeyError, e:
         module.fail_json(msg='Unable to load %s' % e.message)
 
     changed = True
     state = module.params['state']
 
-    Domain.setup(client_id, api_key)
+    Domain.setup(api_token)
     if state in ('present'):
         domain = Domain.find(id=module.params["id"])
 
@@ -223,8 +218,7 @@ def main():
     module = AnsibleModule(
         argument_spec = dict(
             state = dict(choices=['present', 'absent'], default='present'),
-            client_id = dict(aliases=['CLIENT_ID'], no_log=True),
-            api_key = dict(aliases=['API_KEY'], no_log=True),
+            api_token = dict(aliases=['API_TOKEN'], no_log=True),
             name = dict(type='str'),
             id = dict(aliases=['droplet_id'], type='int'),
             ip = dict(type='str'),
